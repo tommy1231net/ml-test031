@@ -57,6 +57,7 @@ def read_root():
 
 @app.post("/predict")
 def predict(data: TaxiTripInput):
+    print(f"Received data: {data}")
     # Convert input to DataFrame
     input_dict = data.dict()
     df = pd.DataFrame([input_dict])
