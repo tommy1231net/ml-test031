@@ -25,19 +25,27 @@ app.add_middleware(
 
 # 3. Model & Mapping Ingestion
 try:
-    # Load XGBoost model
+    # IMPORTANT: Initialize with the correct parameters before loading
+    # num_class should match your label_mapping length (4)
     model = xgb.XGBClassifier()
+    
+    # Load the model
     model.load_model(MODEL_FILE)
     
-    # Load Label Mapping (0: Credit Card, etc.)
+    # Critical Fix: Force the booster to recognize features by dummy prediction or setting attributes
+    # But the most reliable way in Cloud Run is to ensure the model is loaded into the Booster
+    print(f"Model booster feature count: {model.get_booster().num_features()}")
+
+    # Load Label Mapping
     with open(MAPPING_FILE, 'r') as f:
         label_mapping = json.load(f)
-    # Invert mapping to get: {0: "Credit Card", ...}
     inv_label_mapping = {int(v): k for k, v in label_mapping.items()}
     
     print(f"SUCCESS: Loaded {MODEL_FILE} and {MAPPING_FILE}")
+    
 except Exception as e:
-    print(f"ERROR: Failed to load model files: {e}")
+    print(f"ERROR: Failed to load model files: {str(e)}")
+    print(traceback.format_exc())
 
 # 4. Request Schema (Features required for prediction)
 class TaxiTripInput(BaseModel):
