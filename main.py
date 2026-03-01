@@ -37,14 +37,15 @@ async def load_model():
         model.load_model(MODEL_FILE)
         
         with open(MAPPING_FILE, 'r') as f:
-            label_mapping = json.load(f)
-    
-        # Ensure keys are integers: {0: "Credit Card", 1: "Cash", ...}
-        inv_label_mapping = {int(k): v for k, v in label_mapping.items()}
+            mapping_data = json.load(f)
         
-        print(f"SUCCESS: Loaded mapping: {inv_label_mapping}")
+        # Force keys to be integers to match np.argmax() output
+        # This handles both {"0": "Credit Card"} and {0: "Credit Card"}
+        inv_label_mapping = {int(k): v for k, v in mapping_data.items()}
+        
+        print(f"SUCCESS: Mapping loaded as {inv_label_mapping}")
     except Exception as e:
-        print(f"ERROR: {str(e)}")
+        print(f"ERROR: Mapping failed: {str(e)}")
 
 # 4. Request Schema
 class TaxiTripInput(BaseModel):
