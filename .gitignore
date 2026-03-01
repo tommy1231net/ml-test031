@@ -24,5 +24,7 @@ Untitled*
 
 # 6. 認証情報の流出を物理的に防ぐ
 *.json
+!taxi_payment_model.json
+!label_mapping.json
 *.pem
 *.key
