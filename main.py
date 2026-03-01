@@ -56,39 +56,52 @@ def read_root():
     return {"status": "Chicago Taxi Payment Prediction API is active", "model": MODEL_FILE}
 
 @app.post("/predict")
-def predict(data: TaxiTripInput):
-    print(f"Received data: {data}")
-    # Convert input to DataFrame
-    input_dict = data.dict()
-    df = pd.DataFrame([input_dict])
-    
-    # 5. Feature Engineering (Same logic as training)
-    # Convert string to datetime and extract time features
-    ts = pd.to_datetime(df['trip_start_timestamp'])
-    df['hour'] = ts.dt.hour
-    df['dayofweek'] = ts.dt.dayofweek
-    
-    # Define exact feature order used during training
-    features = [
-        'trip_seconds', 'trip_miles', 'fare', 'extras', 'tolls', 
-        'hour', 'dayofweek', 'pickup_area', 'dropoff_area', 'company_id'
-    ]
-    
-    # Select and reorder columns
-    X = df[features]
-    
-    # 6. Execute prediction
-    prediction_idx = int(model.predict(X)[0])
-    prediction_label = inv_label_mapping.get(prediction_idx, "Unknown")
-    
-    # Get probability for each class (optional but professional)
-    probabilities = model.predict_proba(X)[0].tolist()
-    prob_dict = {inv_label_mapping[i]: round(p, 4) for i, p in enumerate(probabilities)}
-    
-    return {
-        "prediction": prediction_label,
-        "confidence_scores": prob_dict
-    }
+async def predict(data: TaxiTripInput):
+    try:
+        # Convert input to DataFrame
+        input_dict = data.dict()
+        df = pd.DataFrame([input_dict])
+        
+        # 5. Feature Engineering with error safety
+        # 'coerce' turns invalid dates into NaT instead of crashing
+        ts = pd.to_datetime(df['trip_start_timestamp'], errors='coerce')
+        
+        if ts.isna().any():
+            return {"error": "Invalid timestamp format. Please use YYYY-MM-DD HH:MM:SS"}
+
+        df['hour'] = ts.dt.hour
+        df['dayofweek'] = ts.dt.dayofweek
+        
+        # Define exact feature order used during training
+        features = [
+            'trip_seconds', 'trip_miles', 'fare', 'extras', 'tolls', 
+            'hour', 'dayofweek', 'pickup_area', 'dropoff_area', 'company_id'
+        ]
+        
+        # Select and reorder columns
+        X = df[features]
+        
+        # 6. Execute prediction
+        prediction_idx = int(model.predict(X)[0])
+        prediction_label = inv_label_mapping.get(prediction_idx, "Unknown")
+        
+        # Calculate probabilities
+        probabilities = model.predict_proba(X)[0].tolist()
+        prob_dict = {inv_label_mapping[i]: round(p, 4) for i, p in enumerate(probabilities)}
+        
+        return {
+            "prediction": prediction_label,
+            "confidence_scores": prob_dict
+        }
+
+    except Exception as e:
+        # Catch any runtime error and log the full traceback to Cloud Run Logs
+        print(f"RUNTIME ERROR: {str(e)}")
+        print(traceback.format_exc())
+        return {
+            "error": str(e),
+            "detail": "Check Cloud Run logs for full traceback"
+        }
 
 if __name__ == "__main__":
     import uvicorn
