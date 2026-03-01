@@ -33,28 +33,18 @@ inv_label_mapping = {}
 async def load_model():
     global model, inv_label_mapping
     try:
-        # Check current directory and files
-        current_dir = os.getcwd()
-        files_in_dir = os.listdir(current_dir)
-        print(f"DIAGNOSTIC: Current directory: {current_dir}")
-        print(f"DIAGNOSTIC: Files found: {files_in_dir}")
-
-        if os.path.exists(MODEL_FILE):
-            # Load XGBoost model
-            model = xgb.XGBClassifier()
-            model.load_model(MODEL_FILE)
-            
-            # Load Mapping
-            with open(MAPPING_FILE, 'r') as f:
-                label_mapping = json.load(f)
-            inv_label_mapping = {int(v): k for k, v in label_mapping.items()}
-            print(f"SUCCESS: Model and mapping loaded correctly.")
-        else:
-            print(f"CRITICAL ERROR: {MODEL_FILE} NOT FOUND. Did you include it in your Docker build?")
-            
+        model = xgb.XGBClassifier()
+        model.load_model(MODEL_FILE)
+        
+        with open(MAPPING_FILE, 'r') as f:
+            label_mapping = json.load(f)
+    
+        # Ensure keys are integers: {0: "Credit Card", 1: "Cash", ...}
+        inv_label_mapping = {int(k): v for k, v in label_mapping.items()}
+        
+        print(f"SUCCESS: Loaded mapping: {inv_label_mapping}")
     except Exception as e:
-        print(f"STARTUP ERROR: {str(e)}")
-        print(traceback.format_exc())
+        print(f"ERROR: {str(e)}")
 
 # 4. Request Schema
 class TaxiTripInput(BaseModel):
@@ -77,61 +67,58 @@ def read_root():
 @app.post("/predict")
 # --- 8. Predict Endpoint with Correct Error Handling and Shape Checks ---
 @app.post("/predict")
+# --- 8. Predict Endpoint with Improved Label Mapping ---
+@app.post("/predict")
 async def predict(data: TaxiTripInput):
     if model is None:
-        return {"error": "Model is not loaded on server. Check logs."}
+        return {"error": "Model is not loaded."}
     
-    try: # <--- This starts the try block
-        # 1. Prepare data
+    try:
         input_dict = data.dict()
         df = pd.DataFrame([input_dict])
         
-        # 2. Feature Engineering
+        # Feature Engineering (Keep same order as training)
         ts = pd.to_datetime(df['trip_start_timestamp'], errors='coerce')
-        if ts.isna().any():
-            return {"error": "Invalid timestamp format"}
-
         df['hour'] = ts.dt.hour
         df['dayofweek'] = ts.dt.dayofweek
         
-        features = [
-            'trip_seconds', 'trip_miles', 'fare', 'extras', 'tolls', 
-            'hour', 'dayofweek', 'pickup_area', 'dropoff_area', 'company_id'
-        ]
+        features = ['trip_seconds', 'trip_miles', 'fare', 'extras', 'tolls', 'hour', 'dayofweek', 'pickup_area', 'dropoff_area', 'company_id']
         X = df[features]
         
-        # 3. Native Booster Prediction
+        # Prediction
         dmatrix = xgb.DMatrix(X)
-        preds = model.get_booster().predict(dmatrix)
+        preds = model.get_booster().predict(dmatrix) # Returns probabilities [p0, p1, p2, p3]
         
-        # 4. Handle 1D vs 2D array shapes (Fix for axis 1 error)
-        if len(preds.shape) > 1:
-            # Multi-sample or standard multi-class (2D)
-            prediction_idx = int(np.argmax(preds, axis=1)[0])
-            probabilities = preds[0].tolist()
-        else:
-            # Single sample flat output (1D)
-            prediction_idx = int(np.argmax(preds))
-            probabilities = preds.tolist()
+        # Flatten preds if it's 2D [[p0, p1, p2, p3]]
+        probabilities = preds[0].tolist() if len(preds.shape) > 1 else preds.tolist()
         
+        # Get the index of the highest probability
+        prediction_idx = int(np.argmax(probabilities))
+        
+        # Build the result dictionary carefully
+        # We ensure that index i matches the label from mapping
+        prob_dict = {}
+        for i, prob in enumerate(probabilities):
+            # Try to get label from mapping, fallback to index string if not found
+            label = inv_label_mapping.get(i, f"Class_{i}")
+            prob_dict[label] = round(float(prob), 4)
+
+        # The final prediction is the label with the highest score
         prediction_label = inv_label_mapping.get(prediction_idx, "Unknown")
         
-        # 5. Format Confidence Scores
-        prob_dict = {
-            inv_label_mapping[i]: round(float(p), 4) 
-            for i, p in enumerate(probabilities)
-        }
-        
+        # Debugging: Log the raw index and scores to Cloud Run console
+        print(f"DEBUG: idx={prediction_idx}, label={prediction_label}, scores={prob_dict}")
+
         return {
             "prediction": prediction_label,
             "confidence_scores": prob_dict
         }
 
-    except Exception as e: # <--- Make sure this 'except' aligns with 'try'
+    except Exception as e:
         import traceback
         print(f"RUNTIME ERROR: {str(e)}")
         print(traceback.format_exc())
-        return {"error": str(e), "detail": "Internal Server Error"}
+        return {"error": str(e)}
 
 if __name__ == "__main__":
     import uvicorn
