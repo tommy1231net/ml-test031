@@ -75,35 +75,63 @@ def read_root():
     return {"status": "API is active", "model_status": model_status}
 
 @app.post("/predict")
+# --- 8. Predict Endpoint with Correct Error Handling and Shape Checks ---
+@app.post("/predict")
 async def predict(data: TaxiTripInput):
     if model is None:
         return {"error": "Model is not loaded on server. Check logs."}
     
-    try:
+    try: # <--- This starts the try block
+        # 1. Prepare data
         input_dict = data.dict()
         df = pd.DataFrame([input_dict])
         
-        # Feature Engineering
+        # 2. Feature Engineering
         ts = pd.to_datetime(df['trip_start_timestamp'], errors='coerce')
+        if ts.isna().any():
+            return {"error": "Invalid timestamp format"}
+
         df['hour'] = ts.dt.hour
         df['dayofweek'] = ts.dt.dayofweek
         
-        features = ['trip_seconds', 'trip_miles', 'fare', 'extras', 'tolls', 'hour', 'dayofweek', 'pickup_area', 'dropoff_area', 'company_id']
+        features = [
+            'trip_seconds', 'trip_miles', 'fare', 'extras', 'tolls', 
+            'hour', 'dayofweek', 'pickup_area', 'dropoff_area', 'company_id'
+        ]
         X = df[features]
         
-        # Prediction via Booster to avoid feature mismatch
+        # 3. Native Booster Prediction
         dmatrix = xgb.DMatrix(X)
         preds = model.get_booster().predict(dmatrix)
         
-        prediction_idx = int(np.argmax(preds, axis=1)[0])
+        # 4. Handle 1D vs 2D array shapes (Fix for axis 1 error)
+        if len(preds.shape) > 1:
+            # Multi-sample or standard multi-class (2D)
+            prediction_idx = int(np.argmax(preds, axis=1)[0])
+            probabilities = preds[0].tolist()
+        else:
+            # Single sample flat output (1D)
+            prediction_idx = int(np.argmax(preds))
+            probabilities = preds.tolist()
+        
         prediction_label = inv_label_mapping.get(prediction_idx, "Unknown")
         
-        prob_dict = {inv_label_mapping[i]: round(float(p), 4) for i, p in enumerate(preds[0])}
+        # 5. Format Confidence Scores
+        prob_dict = {
+            inv_label_mapping[i]: round(float(p), 4) 
+            for i, p in enumerate(probabilities)
+        }
         
-        return {"prediction": prediction_label, "confidence_scores": prob_dict}
-    except Exception as e:
+        return {
+            "prediction": prediction_label,
+            "confidence_scores": prob_dict
+        }
+
+    except Exception as e: # <--- Make sure this 'except' aligns with 'try'
+        import traceback
         print(f"RUNTIME ERROR: {str(e)}")
-        return {"error": str(e)}
+        print(traceback.format_exc())
+        return {"error": str(e), "detail": "Internal Server Error"}
 
 if __name__ == "__main__":
     import uvicorn
