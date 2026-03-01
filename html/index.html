@@ -1,40 +1,72 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>ML Prediction: Daily Max Temperature</title>
+    <title>ML Prediction: Chicago Taxi Payment</title>
     <meta charset="utf-8">
     <style>
-        body { font-family: sans-serif; margin: 2em; }
-        .container { max-width: 500px; }
-        label { display: block; margin-top: 10px; }
-        input { width: 100%; padding: 5px; box-sizing: border-box; }
-        button { margin-top: 20px; padding: 10px; width: 100%; cursor: pointer; background-color: #3498db; color: white; border: none; border-radius: 4px; }
-        button:hover { background-color: #2980b9; }
-        #result { margin-top: 20px; font-weight: bold; color: #2c3e50; padding: 10px; border-radius: 4px; }
+        body { font-family: sans-serif; margin: 2em; background-color: #f4f7f6; }
+        .container { max-width: 600px; margin: auto; background: white; padding: 2em; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h2 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
+        .input-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; color: #34495e; }
+        input, select { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #dcdfe6; border-radius: 4px; }
+        button { margin-top: 20px; padding: 12px; width: 100%; cursor: pointer; background-color: #e67e22; color: white; border: none; border-radius: 4px; font-size: 1.1em; font-weight: bold; }
+        button:hover { background-color: #d35400; }
+        #result { margin-top: 20px; padding: 15px; border-radius: 4px; display: none; }
+        .confidence-list { list-style: none; padding: 0; font-size: 0.9em; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h2 style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color:#2c3e509f;">
-            ML Prediction: <span style="font-size: 0.8em; color: #e98e10f1;">Daily Max Temperature Forecast</span>
-            明日は暑い？寒い？
-        </h2>
-        
-        <p>Enter weather data to predict tomorrow's maximum temperature.</p>
+        <h2>🚕 Chicago Taxi: <span style="color: #e67e22;">Payment Method Predictor</span></h2>
+        <p>走行データを入力して、支払い方法を予測します。</p>
 
-        <label for="month">Month (1-12):</label>
-        <input type="number" id="month" value="6" min="1" max="12">
+        <div class="input-group">
+            <label for="trip_start_timestamp">乗車日時 (Trip Start):</label>
+            <input type="datetime-local" id="trip_start_timestamp" value="2026-03-01T10:30">
+        </div>
 
-        <label for="lag1">Max Temp 1 day ago (℃):昨日の最高気温</label>
-        <input type="number" step="0.1" id="lag1" value="20.0">
+        <div class="input-group">
+            <label for="trip_seconds">走行時間 (秒):</label>
+            <input type="number" id="trip_seconds" value="900">
+        </div>
 
-        <label for="lag2">Max Temp 2 days ago (℃):一昨日の最高気温</label>
-        <input type="number" step="0.1" id="lag2" value="21.0">
+        <div class="input-group">
+            <label for="trip_miles">走行距離 (マイル):</label>
+            <input type="number" step="0.1" id="trip_miles" value="3.5">
+        </div>
 
-        <label for="lag3">Max Temp 3 days ago (℃):３日前の最高気温</label>
-        <input type="number" step="0.1" id="lag3" value="22.0">
+        <div class="input-group">
+            <label for="fare">運賃 ($):</label>
+            <input type="number" step="0.01" id="fare" value="15.00">
+        </div>
 
-        <button onclick="predict()">Predict Tomorrow's Max Temperature: さて、明日の最高気温は？</button>
+        <div class="input-group">
+            <label for="extras">追加料金/チップ以外 ($):</label>
+            <input type="number" step="0.01" id="extras" value="2.50">
+        </div>
+
+        <div class="input-group">
+            <label for="tolls">有料道路代 ($):</label>
+            <input type="number" step="0.01" id="tolls" value="0.00">
+        </div>
+
+        <div class="input-group">
+            <label for="pickup_area">乗車エリアID (1-77):</label>
+            <input type="number" id="pickup_area" value="8">
+        </div>
+
+        <div class="input-group">
+            <label for="dropoff_area">降車エリアID (1-77):</label>
+            <input type="number" id="dropoff_area" value="28">
+        </div>
+
+        <div class="input-group">
+            <label for="company_id">タクシー会社ID (数値):</label>
+            <input type="number" id="company_id" value="101">
+        </div>
+
+        <button onclick="predict()">予測を実行する</button>
 
         <div id="result"></div>
     </div>
@@ -42,19 +74,28 @@
     <script>
         async function predict() {
             const resultDiv = document.getElementById('result');
-            // Provided Cloud Run URL
-            const url = "https://ml-test011-api-958231434949.asia-northeast1.run.app/predict";
+            // あなたの新しい Cloud Run URL
+            const url = "https://ml-test031-api-1010720561963.asia-northeast1.run.app/predict";
         
-            resultDiv.innerText = "⏳ Processing prediction...";
+            resultDiv.style.display = "block";
+            resultDiv.innerText = "⏳ 予測リクエスト送信中...";
             resultDiv.style.color = "#2c3e50";
             resultDiv.style.backgroundColor = "#f8f9fa";
         
-            // Construct data based on main.py's PredictionInput schema
+            // datetime-local の値を API が期待する "YYYY-MM-DD HH:MM:SS" 形式に変換
+            const rawDate = document.getElementById('trip_start_timestamp').value;
+            const formattedDate = rawDate.replace('T', ' ') + ":00";
+
             const data = {
-                month: parseInt(document.getElementById('month').value),
-                lag1: parseFloat(document.getElementById('lag1').value),
-                lag2: parseFloat(document.getElementById('lag2').value),
-                lag3: parseFloat(document.getElementById('lag3').value)
+                trip_start_timestamp: formattedDate,
+                trip_seconds: parseFloat(document.getElementById('trip_seconds').value),
+                trip_miles: parseFloat(document.getElementById('trip_miles').value),
+                fare: parseFloat(document.getElementById('fare').value),
+                extras: parseFloat(document.getElementById('extras').value),
+                tolls: parseFloat(document.getElementById('tolls').value),
+                pickup_area: parseInt(document.getElementById('pickup_area').value),
+                dropoff_area: parseInt(document.getElementById('dropoff_area').value),
+                company_id: parseInt(document.getElementById('company_id').value)
             };
 
             try {
@@ -65,18 +106,27 @@
                 });
 
                 if (!res.ok) {
-                    throw new Error(`API Error: ${res.status} ${res.statusText}`);
+                    throw new Error(`APIエラー: ${res.status}`);
                 }
         
                 const result = await res.json();
         
-                // Display result using the generic key 'prediction_result' defined in main.py
-                resultDiv.innerText = "✅ Predicted Max Temp: " + result.prediction_result.toFixed(1) + " ℃";
+                // 結果の表示
+                let html = `<div style="font-size: 1.2em; margin-bottom: 10px;">✅ 予測結果: <strong>${result.prediction}</strong></div>`;
+                html += `<div><small>信頼スコア (Confidence Scores):</small></div><ul class="confidence-list">`;
+                
+                for (const [label, score] of Object.entries(result.confidence_scores)) {
+                    const percent = (score * 100).toFixed(1);
+                    html += `<li>${label}: ${percent}%</li>`;
+                }
+                html += `</ul>`;
+
+                resultDiv.innerHTML = html;
                 resultDiv.style.backgroundColor = "#e8f5e9";
 
             } catch (error) {
-                console.error("Error details:", error);
-                resultDiv.innerText = "An error occurred: " + error.message;
+                console.error("Error:", error);
+                resultDiv.innerText = "エラーが発生しました: " + error.message;
                 resultDiv.style.color = "red";
                 resultDiv.style.backgroundColor = "#ffebee";
             }
