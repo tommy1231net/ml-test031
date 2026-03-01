@@ -1,17 +1,18 @@
-# 1. Python 3.9の軽量版をベースにする
-FROM python:3.9-slim
+# Use Python 3.11 for better memory management and speed
+FROM python:3.11-slim
 
-# 2. コンテナ内の作業ディレクトリを設定
+# Set the working directory
 WORKDIR /app
 
-# 3. 依存関係ファイルをコピーしてインストール
-# (requirements.txt に pandas, fastapi, uvicorn, joblib, scikit-learn を書いている前提)
+# Copy requirements first to leverage Docker cache
 COPY requirements.txt .
+
+# Install dependencies including scikit-learn and xgboost
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 4. 全ファイル（main.py, .joblibファイルなど）をコピー
+# Copy all application files (main.py, model.json, mapping.json)
 COPY . .
 
-# 5. Cloud Runのポート(8080)に合わせて起動
-# main:app の 'main' は main.py のファイル名に対応
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
+# Run the application using the python command
+# This allows main.py to handle the PORT environment variable dynamically
+CMD ["python", "main.py"]
