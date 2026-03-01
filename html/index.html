@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ML Prediction: Daily Max Temperature</title>
+    <meta charset="utf-8">
+    <style>
+        body { font-family: sans-serif; margin: 2em; }
+        .container { max-width: 500px; }
+        label { display: block; margin-top: 10px; }
+        input { width: 100%; padding: 5px; box-sizing: border-box; }
+        button { margin-top: 20px; padding: 10px; width: 100%; cursor: pointer; background-color: #3498db; color: white; border: none; border-radius: 4px; }
+        button:hover { background-color: #2980b9; }
+        #result { margin-top: 20px; font-weight: bold; color: #2c3e50; padding: 10px; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2 style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color:#2c3e509f;">
+            ML Prediction: <span style="font-size: 0.8em; color: #e98e10f1;">Daily Max Temperature Forecast</span>
+            明日は暑い？寒い？
+        </h2>
+        
+        <p>Enter weather data to predict tomorrow's maximum temperature.</p>
+
+        <label for="month">Month (1-12):</label>
+        <input type="number" id="month" value="6" min="1" max="12">
+
+        <label for="lag1">Max Temp 1 day ago (℃):昨日の最高気温</label>
+        <input type="number" step="0.1" id="lag1" value="20.0">
+
+        <label for="lag2">Max Temp 2 days ago (℃):一昨日の最高気温</label>
+        <input type="number" step="0.1" id="lag2" value="21.0">
+
+        <label for="lag3">Max Temp 3 days ago (℃):３日前の最高気温</label>
+        <input type="number" step="0.1" id="lag3" value="22.0">
+
+        <button onclick="predict()">Predict Tomorrow's Max Temperature: さて、明日の最高気温は？</button>
+
+        <div id="result"></div>
+    </div>
+
+    <script>
+        async function predict() {
+            const resultDiv = document.getElementById('result');
+            // Provided Cloud Run URL
+            const url = "https://ml-test011-api-958231434949.asia-northeast1.run.app/predict";
+        
+            resultDiv.innerText = "⏳ Processing prediction...";
+            resultDiv.style.color = "#2c3e50";
+            resultDiv.style.backgroundColor = "#f8f9fa";
+        
+            // Construct data based on main.py's PredictionInput schema
+            const data = {
+                month: parseInt(document.getElementById('month').value),
+                lag1: parseFloat(document.getElementById('lag1').value),
+                lag2: parseFloat(document.getElementById('lag2').value),
+                lag3: parseFloat(document.getElementById('lag3').value)
+            };
+
+            try {
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (!res.ok) {
+                    throw new Error(`API Error: ${res.status} ${res.statusText}`);
+                }
+        
+                const result = await res.json();
+        
+                // Display result using the generic key 'prediction_result' defined in main.py
+                resultDiv.innerText = "✅ Predicted Max Temp: " + result.prediction_result.toFixed(1) + " ℃";
+                resultDiv.style.backgroundColor = "#e8f5e9";
+
+            } catch (error) {
+                console.error("Error details:", error);
+                resultDiv.innerText = "An error occurred: " + error.message;
+                resultDiv.style.color = "red";
+                resultDiv.style.backgroundColor = "#ffebee";
+            }
+        }
+    </script>
+</body>
+</html>

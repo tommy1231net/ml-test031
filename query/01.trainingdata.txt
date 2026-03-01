@@ -1,0 +1,44 @@
+/*
+  Objective: Extract training data for multiclass classification of payment types.
+  Sampling: Approximately 3% of the total records (approx. 1M rows) using deterministic hashing.
+  Time Range: 2023-01-01 to 2023-11-30.
+*/
+SELECT
+  -- Target Variable
+  CAST(payment_type AS STRING) AS label,
+  
+  -- Temporal Features (Retained for feature engineering in Python)
+  pickup_datetime,
+  dropoff_datetime,
+
+  -- Numerical Features
+  passenger_count,
+  trip_distance,
+  fare_amount,
+  extra,
+  mta_tax,
+  tolls_amount,
+  improvement_surcharge,
+  total_amount,
+  congestion_surcharge,
+
+  -- Categorical Features (Cast to STRING to avoid being treated as continuous variables)
+  CAST(vendor_id AS STRING) AS vendor_id,
+  CAST(rate_code_id AS STRING) AS rate_code_id,
+  CAST(PULocationID AS STRING) AS pickup_location_id,
+  CAST(DOLocationID AS STRING) AS dropoff_location_id
+
+FROM
+  `bigquery-public-data.new_york_taxi_trips.tlc_yellow_trips_2023`
+WHERE
+  -- Date filtering for Training period
+  pickup_datetime >= '2023-01-01' AND pickup_datetime < '2023-12-01'
+  
+  -- Data Cleaning: Filter out outliers and invalid records
+  AND fare_amount BETWEEN 0 AND 500
+  AND trip_distance > 0 AND trip_distance < 100
+  AND passenger_count IS NOT NULL
+  AND payment_type IN (1, 2, 3, 4)
+  
+  -- Deterministic sampling to ensure reproducibility
+  AND ABS(MOD(FARM_FINGERPRINT(CAST(pickup_datetime AS STRING)), 1000)) < 30
