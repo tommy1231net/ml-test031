@@ -74,20 +74,18 @@
     <script>
         async function predict() {
             const resultDiv = document.getElementById('result');
-            // あなたの新しい Cloud Run URL
             const url = "https://ml-test031-api-1010720561963.asia-northeast1.run.app/predict";
-        
+            
             resultDiv.style.display = "block";
-            resultDiv.innerText = "⏳ 予測リクエスト送信中...";
+            resultDiv.innerText = "⏳ Processing prediction...";
             resultDiv.style.color = "#2c3e50";
             resultDiv.style.backgroundColor = "#f8f9fa";
-        
-            // datetime-local の値を API が期待する "YYYY-MM-DD HH:MM:SS" 形式に変換
+            
             const rawDate = document.getElementById('trip_start_timestamp').value;
             const formattedDate = rawDate.replace('T', ' ') + ":00";
-
+            
             const data = {
-                trip_start_timestamp: formattedDate || "2026-03-01 10:30:00",
+                trip_start_timestamp: formattedDate,
                 trip_seconds: parseFloat(document.getElementById('trip_seconds').value) || 0,
                 trip_miles: parseFloat(document.getElementById('trip_miles').value) || 0,
                 fare: parseFloat(document.getElementById('fare').value) || 0,
@@ -97,41 +95,43 @@
                 dropoff_area: parseInt(document.getElementById('dropoff_area').value) || 1,
                 company_id: parseInt(document.getElementById('company_id').value) || 1
             };
-
+        
             try {
-               
                 const res = await fetch(url, {
                     method: 'POST',
-                    mode: 'cors',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json' 
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
                 });
 
-                if (!res.ok) {
-                    throw new Error(`APIエラー: ${res.status}`);
-                }
-        
                 const result = await res.json();
-        
-                // 結果の表示
-                let html = `<div style="font-size: 1.2em; margin-bottom: 10px;">✅ 予測結果: <strong>${result.prediction}</strong></div>`;
-                html += `<div><small>信頼スコア (Confidence Scores):</small></div><ul class="confidence-list">`;
+                console.log("API Response:", result); // Debugging
+
+                // Check if API returned an error
+                if (result.error) {
+                    throw new Error(result.error);
+                }
                 
-                for (const [label, score] of Object.entries(result.confidence_scores)) {
+                // Check if confidence_scores exists before processing
+                if (!result.confidence_scores) {
+                    throw new Error("Invalid response format from API");
+                }
+                
+                let html = `<div style="font-size: 1.2em; margin-bottom: 10px;">✅ Prediction: <strong>${result.prediction}</strong></div>`;
+                html += `<div><small>Confidence Scores:</small></div><ul class="confidence-list">`;
+                
+                // Safe object iteration
+                Object.entries(result.confidence_scores).forEach(([label, score]) => {
                     const percent = (score * 100).toFixed(1);
                     html += `<li>${label}: ${percent}%</li>`;
-                }
+                });
                 html += `</ul>`;
-
+                
                 resultDiv.innerHTML = html;
                 resultDiv.style.backgroundColor = "#e8f5e9";
-
+                
             } catch (error) {
-                console.error("Error:", error);
-                resultDiv.innerText = "エラーが発生しました: " + error.message;
+                console.error("Error details:", error);
+                resultDiv.innerText = "Error: " + error.message;
                 resultDiv.style.color = "red";
                 resultDiv.style.backgroundColor = "#ffebee";
             }

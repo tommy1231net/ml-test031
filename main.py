@@ -33,17 +33,25 @@ inv_label_mapping = {}
 async def load_model():
     global model, inv_label_mapping
     try:
+        # Check current directory and files
+        current_dir = os.getcwd()
+        files_in_dir = os.listdir(current_dir)
+        print(f"DIAGNOSTIC: Current directory: {current_dir}")
+        print(f"DIAGNOSTIC: Files found: {files_in_dir}")
+
         if os.path.exists(MODEL_FILE):
-            # Using XGBClassifier but loading via native booster for stability
+            # Load XGBoost model
             model = xgb.XGBClassifier()
             model.load_model(MODEL_FILE)
             
+            # Load Mapping
             with open(MAPPING_FILE, 'r') as f:
                 label_mapping = json.load(f)
             inv_label_mapping = {int(v): k for k, v in label_mapping.items()}
-            print(f"SUCCESS: Model and mapping loaded.")
+            print(f"SUCCESS: Model and mapping loaded correctly.")
         else:
-            print(f"CRITICAL ERROR: {MODEL_FILE} not found in /app directory.")
+            print(f"CRITICAL ERROR: {MODEL_FILE} NOT FOUND. Did you include it in your Docker build?")
+            
     except Exception as e:
         print(f"STARTUP ERROR: {str(e)}")
         print(traceback.format_exc())
