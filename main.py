@@ -42,7 +42,7 @@ try:
     inv_label_mapping = {int(v): k for k, v in label_mapping.items()}
     
     print(f"SUCCESS: Loaded {MODEL_FILE} and {MAPPING_FILE}")
-    
+
 except Exception as e:
     print(f"ERROR: Failed to load model files: {str(e)}")
     print(traceback.format_exc())
@@ -70,12 +70,10 @@ async def predict(data: TaxiTripInput):
         input_dict = data.dict()
         df = pd.DataFrame([input_dict])
         
-        # 5. Feature Engineering with error safety
-        # 'coerce' turns invalid dates into NaT instead of crashing
+        # 5. Feature Engineering
         ts = pd.to_datetime(df['trip_start_timestamp'], errors='coerce')
-        
         if ts.isna().any():
-            return {"error": "Invalid timestamp format. Please use YYYY-MM-DD HH:MM:SS"}
+            return {"error": "Invalid timestamp format"}
 
         df['hour'] = ts.dt.hour
         df['dayofweek'] = ts.dt.dayofweek
@@ -85,16 +83,21 @@ async def predict(data: TaxiTripInput):
             'trip_seconds', 'trip_miles', 'fare', 'extras', 'tolls', 
             'hour', 'dayofweek', 'pickup_area', 'dropoff_area', 'company_id'
         ]
-        
-        # Select and reorder columns
         X = df[features]
         
-        # 6. Execute prediction
-        prediction_idx = int(model.predict(X)[0])
+        # 6. Execute prediction using Native Booster Interface
+        # This bypasses the "0 features supplied" error by using DMatrix
+        dmatrix = xgb.DMatrix(X)
+        
+        # Native booster returns probabilities for all classes in multi-class problems
+        preds = model.get_booster().predict(dmatrix)
+        
+        # Get index of highest probability
+        prediction_idx = int(np.argmax(preds, axis=1)[0])
         prediction_label = inv_label_mapping.get(prediction_idx, "Unknown")
         
-        # Calculate probabilities
-        probabilities = model.predict_proba(X)[0].tolist()
+        # Format confidence scores
+        probabilities = preds[0].tolist()
         prob_dict = {inv_label_mapping[i]: round(p, 4) for i, p in enumerate(probabilities)}
         
         return {
@@ -103,13 +106,10 @@ async def predict(data: TaxiTripInput):
         }
 
     except Exception as e:
-        # Catch any runtime error and log the full traceback to Cloud Run Logs
+        # Detailed traceback for debugging in Cloud Run logs
         print(f"RUNTIME ERROR: {str(e)}")
         print(traceback.format_exc())
-        return {
-            "error": str(e),
-            "detail": "Check Cloud Run logs for full traceback"
-        }
+        return {"error": str(e), "detail": "Check server logs"}
 
 if __name__ == "__main__":
     import uvicorn
