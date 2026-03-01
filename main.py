@@ -23,29 +23,36 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Global variables
+# --- 3. Model & Mapping Ingestion (Final Robust Version) ---
+# Initialize globally
 model = None
 inv_label_mapping = {}
 
-# 3. Model Loading at Startup
-# Using @app.on_event("startup") ensures the server starts even if loading fails initially
 @app.on_event("startup")
 async def load_model():
-    global model, inv_label_mapping
+    global model, inv_label_mapping # Critical: tell Python we are updating the global variables
     try:
-        model = xgb.XGBClassifier()
-        model.load_model(MODEL_FILE)
+        # Load XGBoost model
+        if os.path.exists(MODEL_FILE):
+            model = xgb.XGBClassifier()
+            model.load_model(MODEL_FILE)
+            print(f"SUCCESS: Model loaded from {MODEL_FILE}")
         
-        with open(MAPPING_FILE, 'r') as f:
-            mapping_data = json.load(f)
-        
-        # Force keys to be integers to match np.argmax() output
-        # This handles both {"0": "Credit Card"} and {0: "Credit Card"}
-        inv_label_mapping = {int(k): v for k, v in mapping_data.items()}
-        
-        print(f"SUCCESS: Mapping loaded as {inv_label_mapping}")
+        # Load Mapping
+        if os.path.exists(MAPPING_FILE):
+            with open(MAPPING_FILE, 'r') as f:
+                raw_mapping = json.load(f)
+            
+            # Ensure keys are integers to match argmax result (0, 1, 2...)
+            inv_label_mapping = {int(k): v for k, v in raw_mapping.items()}
+            print(f"SUCCESS: Mapping loaded: {inv_label_mapping}")
+        else:
+            print(f"ERROR: {MAPPING_FILE} not found!")
+
     except Exception as e:
-        print(f"ERROR: Mapping failed: {str(e)}")
+        print(f"STARTUP ERROR: {str(e)}")
+        import traceback
+        print(traceback.format_exc())
 
 # 4. Request Schema
 class TaxiTripInput(BaseModel):
