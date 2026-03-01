@@ -29,29 +29,31 @@ model = None
 inv_label_mapping = {}
 
 @app.on_event("startup")
+# --- 3. Model & Mapping Ingestion (Corrected for {Name: ID} format) ---
+@app.on_event("startup")
 async def load_model():
-    global model, inv_label_mapping # Critical: tell Python we are updating the global variables
+    global model, inv_label_mapping
     try:
-        # Load XGBoost model
         if os.path.exists(MODEL_FILE):
             model = xgb.XGBClassifier()
             model.load_model(MODEL_FILE)
-            print(f"SUCCESS: Model loaded from {MODEL_FILE}")
+            print("SUCCESS: Model loaded.")
         
-        # Load Mapping
         if os.path.exists(MAPPING_FILE):
             with open(MAPPING_FILE, 'r') as f:
                 raw_mapping = json.load(f)
             
-            # Ensure keys are integers to match argmax result (0, 1, 2...)
-            inv_label_mapping = {int(k): v for k, v in raw_mapping.items()}
-            print(f"SUCCESS: Mapping loaded: {inv_label_mapping}")
+            # --- FIX: Swap Key and Value ---
+            # If raw_mapping is {"Credit Card": 0, "Cash": 1}
+            # This creates {0: "Credit Card", 1: "Cash"}
+            inv_label_mapping = {int(v): k for k, v in raw_mapping.items()}
+            
+            print(f"SUCCESS: Inverted mapping created: {inv_label_mapping}")
         else:
             print(f"ERROR: {MAPPING_FILE} not found!")
 
     except Exception as e:
         print(f"STARTUP ERROR: {str(e)}")
-        import traceback
         print(traceback.format_exc())
 
 # 4. Request Schema
