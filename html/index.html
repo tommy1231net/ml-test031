@@ -87,15 +87,15 @@
             const formattedDate = rawDate.replace('T', ' ') + ":00";
 
             const data = {
-                trip_start_timestamp: formattedDate,
-                trip_seconds: parseFloat(document.getElementById('trip_seconds').value),
-                trip_miles: parseFloat(document.getElementById('trip_miles').value),
-                fare: parseFloat(document.getElementById('fare').value),
-                extras: parseFloat(document.getElementById('extras').value),
-                tolls: parseFloat(document.getElementById('tolls').value),
-                pickup_area: parseInt(document.getElementById('pickup_area').value),
-                dropoff_area: parseInt(document.getElementById('dropoff_area').value),
-                company_id: parseInt(document.getElementById('company_id').value)
+                trip_start_timestamp: formattedDate || "2026-03-01 10:30:00",
+                trip_seconds: parseFloat(document.getElementById('trip_seconds').value) || 0,
+                trip_miles: parseFloat(document.getElementById('trip_miles').value) || 0,
+                fare: parseFloat(document.getElementById('fare').value) || 0,
+                extras: parseFloat(document.getElementById('extras').value) || 0,
+                tolls: parseFloat(document.getElementById('tolls').value) || 0,
+                pickup_area: parseInt(document.getElementById('pickup_area').value) || 1,
+                dropoff_area: parseInt(document.getElementById('dropoff_area').value) || 1,
+                company_id: parseInt(document.getElementById('company_id').value) || 1
             };
 
             try {

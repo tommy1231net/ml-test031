@@ -18,11 +18,9 @@ app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_origin_regex=".*",
     allow_credentials=False,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"], # OPTIONSを明示
     allow_headers=["*"],
-    expose_headers=["*"],
 )
 
 # 3. Model & Mapping Ingestion
