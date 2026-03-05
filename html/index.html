@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <title>ML Demo: Next Product Recommender</title>
+    <title>ML Demo: Product Recommendation</title>
     <meta charset="utf-8">
     <style>
         body { font-family: 'Helvetica Neue', Arial, sans-serif; margin: 2em; background-color: #f0f2f5; color: #333; }
@@ -14,45 +14,60 @@
         .input-group.full { grid-column: span 2; }
         label { display: block; margin-bottom: 6px; font-size: 0.85em; font-weight: bold; color: #444; }
         input, select { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
-        input:focus, select:focus { border-color: #ff4757; outline: none; box-shadow: 0 0 0 2px rgba(255, 71, 87, 0.1); }
         button { margin-top: 25px; padding: 15px; width: 100%; cursor: pointer; background-color: #2f3542; color: white; border: none; border-radius: 6px; font-size: 1.1em; font-weight: bold; transition: background 0.3s; }
         button:hover { background-color: #ff4757; }
-        
-        /* 実行結果のスタイル */
         #result { margin-top: 25px; padding: 20px; border-radius: 8px; display: none; border: 1px solid #eee; }
         .recommendation-box { text-align: center; padding: 15px; background: #fff; border: 2px dashed #ff4757; border-radius: 8px; margin-bottom: 15px; }
         .rec-label { font-size: 1.4em; color: #ff4757; font-weight: bold; }
-        .strategy-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; background: #eee; font-size: 0.75em; color: #666; margin-top: 5px; }
         .detail-table { width: 100%; font-size: 0.85em; border-collapse: collapse; margin-top: 10px; }
         .detail-table th, .detail-table td { text-align: left; padding: 8px; border-bottom: 1px solid #eee; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h2>🛍️ TheLook: <span style="color: #ff4757;">Next Item Predictor</span></h2>
-        <p>Predict likely co-purchase categories based on product and user data.</p>
+    <h2>🧥 TheLook eCommerce: Fashion AI Recommender</h2>
+    <p>
+        <strong>Next-Item Prediction for Apparel:</strong><br>
+        Predicts the product category most likely to be purchased together with the first item, 
+        specifically optimized for TheLook's fashion inventory.
+    </p>
 
-        <div class="section-title">Current Product Context</div>
+        <div class="section-title">First Item Purchased</div>
         <div class="input-grid">
             <div class="input-group">
-                <label for="input_category">Category:</label>
+                <label for="input_category">Category(Choose from 26 types):</label>
                 <select id="input_category">
-                    <option value="Tops & Tees">Tops & Tees</option>
-                    <option value="Jeans">Jeans</option>
-                    <option value="Dresses">Dresses</option>
                     <option value="Accessories">Accessories</option>
-                    <option value="Swim">Swim</option>
+                    <option value="Active">Active</option>
+                    <option value="Blazers & Jackets">Blazers & Jackets</option>
+                    <option value="Clothing Sets">Clothing Sets</option>
+                    <option value="Dresses">Dresses</option>
+                    <option value="Fashion Hoodies & Sweatshirts">Fashion Hoodies & Sweatshirts</option>
+                    <option value="Intimates">Intimates</option>
+                    <option value="Jeans">Jeans</option>
+                    <option value="Jumpsuits & Rompers">Jumpsuits & Rompers</option>
+                    <option value="Leggings">Leggings</option>
+                    <option value="Maternity">Maternity</option>
+                    <option value="Outerwear & Coats">Outerwear & Coats</option>
+                    <option value="Pants">Pants</option>
+                    <option value="Pants & Capris">Pants & Capris</option>
+                    <option value="Plus">Plus</option>
+                    <option value="Shorts">Shorts</option>
+                    <option value="Skirts">Skirts</option>
+                    <option value="Sleep & Lounge">Sleep & Lounge</option>
+                    <option value="Socks">Socks</option>
+                    <option value="Socks & Hosiery">Socks & Hosiery</option>
+                    <option value="Suits">Suits</option>
+                    <option value="Suits & Sport Coats">Suits & Sport Coats</option>
                     <option value="Sweaters">Sweaters</option>
+                    <option value="Swim">Swim</option>
+                    <option value="Tops & Tees">Tops & Tees</option>
                     <option value="Underwear">Underwear</option>
                 </select>
             </div>
             <div class="input-group">
                 <label for="input_price">Price ($):</label>
-                <input type="number" id="input_price" value="45.00">
-            </div>
-            <div class="input-group">
-                <label for="input_brand">Brand:</label>
-                <input type="text" id="input_brand" value="Diesel">
+                <input type="number" id="input_price" value="50.00">
             </div>
             <div class="input-group">
                 <label for="input_department">Department:</label>
@@ -67,7 +82,7 @@
         <div class="input-grid">
             <div class="input-group">
                 <label for="age">Age:</label>
-                <input type="number" id="age" value="28">
+                <input type="number" id="age" value="30">
             </div>
             <div class="input-group">
                 <label for="gender">Gender:</label>
@@ -78,11 +93,26 @@
             </div>
             <div class="input-group full">
                 <label for="country">Country:</label>
-                <input type="text" id="country" value="Japan">
+                <select id="country">
+                    <option value="Australia">Australia</option>
+                    <option value="Austria">Austria</option>
+                    <option value="Belgium">Belgium</option>
+                    <option value="Brazil">Brazil</option>
+                    <option value="China">China</option>
+                    <option value="Colombia">Colombia</option>
+                    <option value="France">France</option>
+                    <option value="Germany">Germany</option>
+                    <option value="Japan">Japan</option>
+                    <option value="Poland">Poland</option>
+                    <option value="South Korea">South Korea</option>
+                    <option value="Spain">Spain</option>
+                    <option value="United Kingdom">United Kingdom</option>
+                    <option value="United States">United States</option>
+                </select>
             </div>
         </div>
 
-        <button onclick="predict()">Predict likely co-purchase categories</button>
+        <button onclick="predict()">Predict Frequently Purchased Together with The First Item</button>
 
         <div id="result"></div>
     </div>
@@ -94,12 +124,12 @@
             
             resultDiv.style.display = "block";
             resultDiv.innerHTML = "⏳ AI Analyzing user behavior...";
-            resultDiv.style.backgroundColor = "#f8f9fa";
             
+            // Note: input_brand is removed to match the API's PredictionRequest schema
             const data = {
                 input_category: document.getElementById('input_category').value,
                 input_price: parseFloat(document.getElementById('input_price').value) || 0,
-                input_brand: document.getElementById('input_brand').value,
+                input_brand: "N/A", // Sent as placeholder or match the schema if strictly required
                 input_department: document.getElementById('input_department').value,
                 age: parseInt(document.getElementById('age').value) || 0,
                 gender: document.getElementById('gender').value,
@@ -113,13 +143,14 @@
                     body: JSON.stringify(data)
                 });
 
-                if (!res.ok) throw new Error("API Connection Failed");
+                if (!res.ok) throw new Error(`API Error: ${res.status}`);
                 
                 const result = await res.json();
 
                 let html = `<div class="recommendation-box">`;
                 html += `<div style="font-size: 0.9em; color: #666;">Recommended Category:</div>`;
                 html += `<div class="rec-label">${result.recommended_category}</div>`;
+                html += `<div style="font-size: 0.9em; color: #666;">Selected from 25 alternative categories based on cross-sell logic.</div>`;
                 html += `</div>`;
 
                 html += `<table class="detail-table">`;
@@ -129,13 +160,9 @@
                 html += `</table>`;
                 
                 resultDiv.innerHTML = html;
-                resultDiv.style.backgroundColor = "#ffffff";
                 
             } catch (error) {
-                console.error("Error:", error);
-                resultDiv.innerText = "Error: " + error.message;
-                resultDiv.style.color = "#d63031";
-                resultDiv.style.backgroundColor = "#fff5f5";
+                resultDiv.innerHTML = `<div style="color:red">Error: ${error.message}</div>`;
             }
         }
     </script>
