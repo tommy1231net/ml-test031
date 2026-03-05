@@ -1,72 +1,88 @@
 <!DOCTYPE html>
-<html>
+<html lang="ja">
 <head>
-    <title>ML Prediction: Chicago Taxi Payment</title>
+    <title>ML Demo: Next Product Recommender</title>
     <meta charset="utf-8">
     <style>
-        body { font-family: sans-serif; margin: 2em; background-color: #f4f7f6; }
-        .container { max-width: 600px; margin: auto; background: white; padding: 2em; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        h2 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; margin: 2em; background-color: #f0f2f5; color: #333; }
+        .container { max-width: 650px; margin: auto; background: white; padding: 2.5em; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+        h2 { color: #1a1a1a; border-bottom: 3px solid #ff4757; padding-bottom: 12px; margin-top: 0; }
+        p { color: #666; font-size: 0.95em; line-height: 1.6; }
+        .section-title { font-size: 1.1em; font-weight: bold; margin: 20px 0 10px; color: #ff4757; border-left: 4px solid #ff4757; padding-left: 10px; }
+        .input-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
         .input-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; color: #34495e; }
-        input, select { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #dcdfe6; border-radius: 4px; }
-        button { margin-top: 20px; padding: 12px; width: 100%; cursor: pointer; background-color: #e67e22; color: white; border: none; border-radius: 4px; font-size: 1.1em; font-weight: bold; }
-        button:hover { background-color: #d35400; }
-        #result { margin-top: 20px; padding: 15px; border-radius: 4px; display: none; }
-        .confidence-list { list-style: none; padding: 0; font-size: 0.9em; }
+        .input-group.full { grid-column: span 2; }
+        label { display: block; margin-bottom: 6px; font-size: 0.85em; font-weight: bold; color: #444; }
+        input, select { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
+        input:focus, select:focus { border-color: #ff4757; outline: none; box-shadow: 0 0 0 2px rgba(255, 71, 87, 0.1); }
+        button { margin-top: 25px; padding: 15px; width: 100%; cursor: pointer; background-color: #2f3542; color: white; border: none; border-radius: 6px; font-size: 1.1em; font-weight: bold; transition: background 0.3s; }
+        button:hover { background-color: #ff4757; }
+        
+        /* 実行結果のスタイル */
+        #result { margin-top: 25px; padding: 20px; border-radius: 8px; display: none; border: 1px solid #eee; }
+        .recommendation-box { text-align: center; padding: 15px; background: #fff; border: 2px dashed #ff4757; border-radius: 8px; margin-bottom: 15px; }
+        .rec-label { font-size: 1.4em; color: #ff4757; font-weight: bold; }
+        .strategy-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; background: #eee; font-size: 0.75em; color: #666; margin-top: 5px; }
+        .detail-table { width: 100%; font-size: 0.85em; border-collapse: collapse; margin-top: 10px; }
+        .detail-table th, .detail-table td { text-align: left; padding: 8px; border-bottom: 1px solid #eee; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h2>🚕 Chicago Taxi: <span style="color: #e67e22;">Payment Method Predictor</span></h2>
-        <p>走行データを入力して、支払い方法を予測します。</p>
+        <h2>🛍️ TheLook: <span style="color: #ff4757;">Next Item Predictor</span></h2>
+        <p>現在の閲覧商品とユーザー属性から、次に購入される可能性が高いカテゴリを予測します。</p>
 
-        <div class="input-group">
-            <label for="trip_start_timestamp">乗車日時 (Trip Start):</label>
-            <input type="datetime-local" id="trip_start_timestamp" value="2026-03-01T10:30">
+        <div class="section-title">Current Product Context</div>
+        <div class="input-grid">
+            <div class="input-group">
+                <label for="input_category">Category:</label>
+                <select id="input_category">
+                    <option value="Tops & Tees">Tops & Tees</option>
+                    <option value="Jeans">Jeans</option>
+                    <option value="Dresses">Dresses</option>
+                    <option value="Accessories">Accessories</option>
+                    <option value="Swim">Swim</option>
+                    <option value="Sweaters">Sweaters</option>
+                    <option value="Underwear">Underwear</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label for="input_price">Price ($):</label>
+                <input type="number" id="input_price" value="45.00">
+            </div>
+            <div class="input-group">
+                <label for="input_brand">Brand:</label>
+                <input type="text" id="input_brand" value="Diesel">
+            </div>
+            <div class="input-group">
+                <label for="input_department">Department:</label>
+                <select id="input_department">
+                    <option value="Men">Men</option>
+                    <option value="Women">Women</option>
+                </select>
+            </div>
         </div>
 
-        <div class="input-group">
-            <label for="trip_seconds">走行時間 (秒):</label>
-            <input type="number" id="trip_seconds" value="900">
+        <div class="section-title">User Demographics</div>
+        <div class="input-grid">
+            <div class="input-group">
+                <label for="age">Age:</label>
+                <input type="number" id="age" value="28">
+            </div>
+            <div class="input-group">
+                <label for="gender">Gender:</label>
+                <select id="gender">
+                    <option value="M">Male</option>
+                    <option value="F">Female</option>
+                </select>
+            </div>
+            <div class="input-group full">
+                <label for="country">Country:</label>
+                <input type="text" id="country" value="Japan">
+            </div>
         </div>
 
-        <div class="input-group">
-            <label for="trip_miles">走行距離 (マイル):</label>
-            <input type="number" step="0.1" id="trip_miles" value="3.5">
-        </div>
-
-        <div class="input-group">
-            <label for="fare">運賃 ($):</label>
-            <input type="number" step="0.01" id="fare" value="15.00">
-        </div>
-
-        <div class="input-group">
-            <label for="extras">追加料金/チップ以外 ($):</label>
-            <input type="number" step="0.01" id="extras" value="2.50">
-        </div>
-
-        <div class="input-group">
-            <label for="tolls">有料道路代 ($):</label>
-            <input type="number" step="0.01" id="tolls" value="0.00">
-        </div>
-
-        <div class="input-group">
-            <label for="pickup_area">乗車エリアID (1-77):</label>
-            <input type="number" id="pickup_area" value="8">
-        </div>
-
-        <div class="input-group">
-            <label for="dropoff_area">降車エリアID (1-77):</label>
-            <input type="number" id="dropoff_area" value="28">
-        </div>
-
-        <div class="input-group">
-            <label for="company_id">タクシー会社ID (数値):</label>
-            <input type="number" id="company_id" value="101">
-        </div>
-
-        <button onclick="predict()">予測を実行する</button>
+        <button onclick="predict()">予測とおすすめを表示</button>
 
         <div id="result"></div>
     </div>
@@ -77,23 +93,17 @@
             const url = "https://ml-test031-api-1010720561963.asia-northeast1.run.app/predict";
             
             resultDiv.style.display = "block";
-            resultDiv.innerText = "⏳ Processing prediction...";
-            resultDiv.style.color = "#2c3e50";
+            resultDiv.innerHTML = "⏳ AI Analyzing user behavior...";
             resultDiv.style.backgroundColor = "#f8f9fa";
             
-            const rawDate = document.getElementById('trip_start_timestamp').value;
-            const formattedDate = rawDate.replace('T', ' ') + ":00";
-            
             const data = {
-                trip_start_timestamp: formattedDate,
-                trip_seconds: parseFloat(document.getElementById('trip_seconds').value) || 0,
-                trip_miles: parseFloat(document.getElementById('trip_miles').value) || 0,
-                fare: parseFloat(document.getElementById('fare').value) || 0,
-                extras: parseFloat(document.getElementById('extras').value) || 0,
-                tolls: parseFloat(document.getElementById('tolls').value) || 0,
-                pickup_area: parseInt(document.getElementById('pickup_area').value) || 1,
-                dropoff_area: parseInt(document.getElementById('dropoff_area').value) || 1,
-                company_id: parseInt(document.getElementById('company_id').value) || 1
+                input_category: document.getElementById('input_category').value,
+                input_price: parseFloat(document.getElementById('input_price').value) || 0,
+                input_brand: document.getElementById('input_brand').value,
+                input_department: document.getElementById('input_department').value,
+                age: parseInt(document.getElementById('age').value) || 0,
+                gender: document.getElementById('gender').value,
+                country: document.getElementById('country').value
             };
         
             try {
@@ -103,37 +113,30 @@
                     body: JSON.stringify(data)
                 });
 
+                if (!res.ok) throw new Error("API Connection Failed");
+                
                 const result = await res.json();
-                console.log("API Response:", result); // Debugging
 
-                // Check if API returned an error
-                if (result.error) {
-                    throw new Error(result.error);
-                }
-                
-                // Check if confidence_scores exists before processing
-                if (!result.confidence_scores) {
-                    throw new Error("Invalid response format from API");
-                }
-                
-                let html = `<div style="font-size: 1.2em; margin-bottom: 10px;">✅ Prediction: <strong>${result.prediction}</strong></div>`;
-                html += `<div><small>Confidence Scores:</small></div><ul class="confidence-list">`;
-                
-                // Safe object iteration
-                Object.entries(result.confidence_scores).forEach(([label, score]) => {
-                    const percent = (score * 100).toFixed(1);
-                    html += `<li>${label}: ${percent}%</li>`;
-                });
-                html += `</ul>`;
+                let html = `<div class="recommendation-box">`;
+                html += `<div style="font-size: 0.9em; color: #666;">Recommended Category:</div>`;
+                html += `<div class="rec-label">${result.recommended_category}</div>`;
+                html += `<div class="strategy-badge">Logic: ${result.strategy}</div>`;
+                html += `</div>`;
+
+                html += `<table class="detail-table">`;
+                html += `<tr><th>Rank</th><th>Category</th><th>Probability</th></tr>`;
+                html += `<tr><td>1st</td><td>${result.details.rank1.category}</td><td>${(result.details.rank1.prob * 100).toFixed(1)}%</td></tr>`;
+                html += `<tr><td>2nd</td><td>${result.details.rank2.category}</td><td>${(result.details.rank2.prob * 100).toFixed(1)}%</td></tr>`;
+                html += `</table>`;
                 
                 resultDiv.innerHTML = html;
-                resultDiv.style.backgroundColor = "#e8f5e9";
+                resultDiv.style.backgroundColor = "#ffffff";
                 
             } catch (error) {
-                console.error("Error details:", error);
+                console.error("Error:", error);
                 resultDiv.innerText = "Error: " + error.message;
-                resultDiv.style.color = "red";
-                resultDiv.style.backgroundColor = "#ffebee";
+                resultDiv.style.color = "#d63031";
+                resultDiv.style.backgroundColor = "#fff5f5";
             }
         }
     </script>
