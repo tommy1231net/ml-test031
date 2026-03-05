@@ -30,7 +30,7 @@
 <body>
     <div class="container">
         <h2>🛍️ TheLook: <span style="color: #ff4757;">Next Item Predictor</span></h2>
-        <p>現在の閲覧商品とユーザー属性から、次に購入される可能性が高いカテゴリを予測します。</p>
+        <p>Predict likely co-purchase categories based on product and user data.</p>
 
         <div class="section-title">Current Product Context</div>
         <div class="input-grid">
@@ -82,7 +82,7 @@
             </div>
         </div>
 
-        <button onclick="predict()">予測とおすすめを表示</button>
+        <button onclick="predict()">Predict likely co-purchase categories</button>
 
         <div id="result"></div>
     </div>
@@ -120,7 +120,6 @@
                 let html = `<div class="recommendation-box">`;
                 html += `<div style="font-size: 0.9em; color: #666;">Recommended Category:</div>`;
                 html += `<div class="rec-label">${result.recommended_category}</div>`;
-                html += `<div class="strategy-badge">Logic: ${result.strategy}</div>`;
                 html += `</div>`;
 
                 html += `<table class="detail-table">`;
