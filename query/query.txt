@@ -1,0 +1,57 @@
+WITH order_details AS (
+  -- 1. Combine Order, Product, and User information (Excluding Brand)
+  -- We removed input_brand to simplify the model and improve deployment efficiency.
+  SELECT
+    oi.order_id,
+    p.category,
+    p.retail_price,
+    p.department,
+    u.age,
+    u.gender,
+    u.country
+  FROM
+    `bigquery-public-data.thelook_ecommerce.order_items` AS oi
+  JOIN
+    `bigquery-public-data.thelook_ecommerce.products` AS p ON oi.product_id = p.id
+  JOIN
+    `bigquery-public-data.thelook_ecommerce.users` AS u ON oi.user_id = u.id
+  WHERE
+    oi.status = 'Complete'      -- Focus only on successful transactions
+    AND u.age IS NOT NULL       -- Ensure data quality by removing null values
+    AND u.gender IS NOT NULL
+    AND u.country IS NOT NULL
+),
+multi_item_orders AS (
+  -- 2. Identify "Market Baskets" containing at least two different categories
+  -- This filters out single-item orders to focus on cross-category purchase patterns.
+  SELECT
+    order_id
+  FROM
+    order_details
+  GROUP BY
+    order_id
+  HAVING
+    COUNT(DISTINCT category) >= 2
+)
+-- 3. Create Feature (Input) and Target (Label) pairs
+SELECT
+  -- [Input Features: Product context]
+  a.category AS input_category,
+  a.retail_price AS input_price,
+  a.department AS input_department,
+  -- [Input Features: User context]
+  a.age,
+  a.gender,
+  a.country,
+  -- [Target Label: The other item in the same basket]
+  b.category AS label
+FROM
+  order_details AS a
+JOIN
+  order_details AS b ON a.order_id = b.order_id
+JOIN
+  multi_item_orders AS m ON a.order_id = m.order_id
+WHERE
+  -- Extract only correlations between DIFFERENT categories
+  -- This ensures the model learns to suggest complementary products.
+  a.category != b.category
